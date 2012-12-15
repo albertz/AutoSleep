@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from pprint import pprint
-import psutil
+import psutil # easy_install psutil
 import os
 
 pslist = psutil.get_process_list()
