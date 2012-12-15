@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from pprint import pprint
-import psutil
+import psutil # easy_install psutil
 import os
 
 pslist = psutil.get_process_list()
@@ -40,6 +40,7 @@ def isImportantSystemService(p):
 	if p.exe.startswith("/usr/sbin/"): return True
 	if p.exe.startswith("/usr/libexec/"): return True
 	if p.exe.startswith("/System/"): return True
+	return False
 
 blacklistBasename = [
 	"fish", "bash",	"zsh",
@@ -57,10 +58,32 @@ def suspendProc(p):
 	p.suspend()
 	for childp in p.get_children():
 		suspendProc(childp)
-		
+
+def hasVisibleWindows(p):
+	global appscript_sysev
+	if "appscript_sysev" in globals():
+		sysev = appscript_sysev
+	else:
+		import appscript
+		sysev = appscript.app("System Events")
+		appscript_sysev = sysev
+	def appByPid(pid):
+		l = [p for p in sysev.application_processes() if p.unix_id() == 285]
+		assert len(l) <= 1
+		if l: return l[0]
+		return None
+	app = appByPid(p.pid)
+	if not app: return False
+	if not app.visible(): return False
+	wins = app.windows()
+	if not wins: return False
+	if any([w.attributes['AXMinimized'].value() for w in wins]): return True
+	return False
+	
 for p in toplevelProclist:
 	if p.status == psutil.STATUS_STOPPED: continue # already sleeping
 	if not shouldSleep(p): continue
+	if hasVisibleWindows(p): continue
 	print "suspend", p.pid, p.name
 	suspendProc(p)
 
