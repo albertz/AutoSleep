@@ -2,7 +2,7 @@
 
 from pprint import pprint
 import psutil # easy_install psutil
-import os
+import os, sys
 
 pslist = psutil.get_process_list()
 
@@ -59,27 +59,24 @@ def suspendProc(p):
 	for childp in p.get_children():
 		suspendProc(childp)
 
-def hasVisibleWindows(p):
-	global appscript, appscript_sysev
+if sys.platform == "darwin":
 	import appscript
-	if "appscript_sysev" in globals():
-		sysev = appscript_sysev
-	else:
-		sysev = appscript.app("System Events")
-		appscript_sysev = sysev
-	def appByPid(pid):
-		l = [p for p in sysev.application_processes() if p.unix_id() == 285]
-		assert len(l) <= 1
-		if l: return l[0]
-		return None
-	app = appByPid(p.pid)
-	if not app: return False
-	if not app.visible(): return False
-	# getting all the windows is slow for some reason...
-	#wins = app.windows()
-	#if not wins: return False
-	#if any([w.attributes['AXMinimized'].value() for w in wins]): return False
-	if app.windows[appscript.its.attributes['AXMinimized'].value==False].count(): return True
+	guiInfo = {}
+	for app in appscript.app("System Events").application_processes():
+		appInfo = guiInfo.setdefault(app.unix_id(), {})
+		appInfo["visible"] = app.visible()
+		# TODO: why is this so slow...?
+		#appInfo["visible_windows_count"] = app.windows[appscript.its.attributes['AXMinimized'].value==False].count()
+		appInfo["visible_windows_count"] = app.windows.count() if appInfo["visible"] else 0 # hack...
+else:
+	guiInfo = {}
+	
+def hasVisibleWindows(p):
+	global guiInfo
+	if not p.pid in guiInfo: return False
+	appInfo = guiInfo[p.pid]
+	if not appInfo["visible"]: return False
+	if appInfo.get("visible_windows_count", 0) > 0: return True
 	return False
 	
 for p in toplevelProclist:
