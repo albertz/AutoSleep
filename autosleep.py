@@ -60,11 +60,11 @@ def suspendProc(p):
 		suspendProc(childp)
 
 def hasVisibleWindows(p):
-	global appscript_sysev
+	global appscript, appscript_sysev
+	import appscript
 	if "appscript_sysev" in globals():
 		sysev = appscript_sysev
 	else:
-		import appscript
 		sysev = appscript.app("System Events")
 		appscript_sysev = sysev
 	def appByPid(pid):
@@ -75,9 +75,11 @@ def hasVisibleWindows(p):
 	app = appByPid(p.pid)
 	if not app: return False
 	if not app.visible(): return False
-	wins = app.windows()
-	if not wins: return False
-	if any([w.attributes['AXMinimized'].value() for w in wins]): return True
+	# getting all the windows is slow for some reason...
+	#wins = app.windows()
+	#if not wins: return False
+	#if any([w.attributes['AXMinimized'].value() for w in wins]): return False
+	if app.windows[appscript.its.attributes['AXMinimized'].value==False].count(): return True
 	return False
 	
 for p in toplevelProclist:
